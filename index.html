@@ -3232,6 +3232,512 @@ Reports.inventory = function () {
 
 </script>
 <script>
+/* ===================== VUE : BUDGET MAISON (classeur « Budget Maison Jaillans 2027 ») =====================
+   Repris du classeur Excel : hypothèses, postes mois par mois, énergie, présence des enfants, synthèse.
+   Tout est modifiable : hypothèses, mois d'application, profils, présence, et chaque case du tableau (surcharge). */
+const HB = (() => {
+  const MS = ['Janv.', 'Févr.', 'Mars', 'Avr.', 'Mai', 'Juin', 'Juil.', 'Août', 'Sept.', 'Oct.', 'Nov.', 'Déc.'];
+  const PARAMS = [["TF_BASE", "Taxe foncière (montant de l'annonce)", 2179, "€/an", "Fiche du bien (annonce l'Adresse n°14301557). Inclut a priori la taxe d'ordures ménagères.", "LOGEMENT", false], ["TF_REVAL", "Revalorisation 2027 des bases foncières", 0.015, "%", "Hypothèse ; la revalorisation légale suit l'inflation de l'année précédente.", "LOGEMENT", false], ["MRH", "Assurance habitation (265 m², piscine, dépendances)", 1150, "€/an", "Estimation pour une grande maison avec piscine — demander 2-3 devis.", "LOGEMENT", true], ["EAU_PRIX", "Prix de l'eau (eau + assainissement)", 4.3, "€/m³", "Moyenne nationale ~4,3 €/m³ ; vérifier le tarif de Jaillans. Si fosse septique : prix plus bas mais vidange à prévoir.", "LOGEMENT", true], ["EAU_FOYER", "Consommation d'eau du foyer", 165, "m³/an", "~45 m³/pers/an pour 3 permanents + bébé + 2 ados en garde partielle.", "LOGEMENT", false], ["EAU_JARDIN", "Arrosage jardin (juin-août)", 40, "m³/an", "1 783 m² de terrain paysagé, palmiers.", "LOGEMENT", false], ["EAU_PISCINE", "Appoint piscine (mai-sept.)", 30, "m³/an", "Évaporation + lavages filtre, bassin 10 × 4,5 m.", "LOGEMENT", false], ["BOX", "Box internet fibre", 42, "€/mois", "Fibre disponible (fiche du bien).", "LOGEMENT", false], ["ENT_PAC", "Entretien PAC air/eau (septembre)", 220, "€", "Entretien obligatoire tous les 2 ans pour les PAC 4-70 kW ; annuel recommandé.", "LOGEMENT", false], ["ENT_CLIM", "Entretien climatisation gainable (avril)", 160, "€", "Avant l'été : filtres, contrôle fluide.", "LOGEMENT", false], ["PISC_PRODUITS", "Produits piscine (avr.-sept.)", 70, "€/mois", "Sel/chlore, pH, anti-algues, analyses.", "LOGEMENT", false], ["PISC_OUVERTURE", "Remise en route piscine (avril)", 150, "€", "Mettre 0 si vous la faites vous-même.", "LOGEMENT", false], ["PISC_HIVERNAGE", "Hivernage piscine (octobre)", 150, "€", "Produit d'hivernage + éventuelle intervention.", "LOGEMENT", false], ["PISC_PROV", "Provision matériel piscine", 0, "€/mois", "Robot, cellule électrolyse, pompe, couverture…", "LOGEMENT", false], ["JARDIN", "Entretien jardin courant (mars-oct.)", 40, "€/mois", "Engrais, petit matériel, consommables tondeuse.", "LOGEMENT", false], ["PALMIERS", "Taille des palmiers (juin)", 350, "€", "Par un professionnel.", "LOGEMENT", true], ["ELAGAGE", "Élagage / haies (novembre)", 400, "€", "", "LOGEMENT", false], ["JARDINIER", "Jardinier / pisciniste (optionnel)", 0, "€/mois", "Services à la personne : 50 % de crédit d'impôt.", "LOGEMENT", false], ["AIDE_MENAGE", "Aide ménagère (optionnel)", 0, "€/mois", "Services à la personne : 50 % de crédit d'impôt.", "LOGEMENT", false], ["MENAGE", "Produits ménagers / petit équipement maison", 0, "€/mois", "", "LOGEMENT", false], ["PRIX_HP", "Prix kWh Heures Pleines (Tarif Bleu 12 kVA)", 0.2142, "€/kWh", "Tarif Bleu EDF au 1er août 2026 (fournisseurs-electricite.com). L'option Base n'est plus souscriptible en 9 kVA et plus.", "ÉNERGIE — ÉLECTRICITÉ", false], ["PRIX_HC", "Prix kWh Heures Creuses", 0.1589, "€/kWh", "Idem.", "ÉNERGIE — ÉLECTRICITÉ", false], ["ABO_ELEC", "Abonnement 12 kVA", 285.12, "€/an", "Idem.", "ÉNERGIE — ÉLECTRICITÉ", false], ["HAUSSE_ELEC", "Évolution des tarifs en 2027", 0.03, "%", "Hypothèse prudente.", "ÉNERGIE — ÉLECTRICITÉ", false], ["PART_HC", "Part de la maison consommée en heures creuses", 0.35, "%", "Ballon/plancher chauffant programmés en HC ; la recharge des véhicules est 100 % HC.", "ÉNERGIE — ÉLECTRICITÉ", false], ["MAISON_KWH", "Consommation maison hors piscine et véhicules", 11000, "kWh/an", "DPE A : 1 430-2 000 €/an de charges énergétiques (fiche) ≈ 7-10 MWh + électroménager d'une famille de 5-6.", "ÉNERGIE — ÉLECTRICITÉ", false], ["PERTES", "Pertes de recharge", 0.1, "%", "", "ÉNERGIE — ÉLECTRICITÉ", false], ["CUPRA_KM", "Cupra Raval — km/an", 15000, "km", "À ajuster selon les usages réels.", "VÉHICULES", true], ["CUPRA_CONSO", "Cupra Raval — consommation", 15, "kWh/100 km", "", "VÉHICULES", false], ["CUPRA_DOM", "Cupra Raval — part rechargée à domicile", 0.85, "%", "Le reste en recharge publique.", "VÉHICULES", false], ["PRIX_PUB", "Prix recharge publique", 0.5, "€/kWh", "Moyenne bornes rapides / réseaux publics.", "VÉHICULES", false], ["OMODA_KM", "Omoda 9 — km/an", 20000, "km", "À ajuster (déplacements pro ? véhicule de fonction ?).", "VÉHICULES", true], ["OMODA_ELEC", "Omoda 9 — part des km en électrique", 0.4, "%", "Hybride rechargeable : trajets courts en électrique.", "VÉHICULES", false], ["OMODA_KWH", "Omoda 9 — conso électrique", 22, "kWh/100 km", "", "VÉHICULES", false], ["OMODA_L", "Omoda 9 — conso essence (mode hybride)", 7.5, "L/100 km", "", "VÉHICULES", false], ["PRIX_ESS", "Prix du litre SP95-E10", 1.8, "€/L", "Hypothèse ; à mettre à jour.", "VÉHICULES", false], ["ASSU_OMODA", "Assurance Omoda 9 (tous risques)", 1100, "€/an", "Véhicule neuf.", "VÉHICULES", true], ["ASSU_CUPRA", "Assurance Cupra Raval (tous risques)", 850, "€/an", "Véhicule neuf.", "VÉHICULES", true], ["ENT_OMODA", "Révision Omoda 9 (juin)", 280, "€", "Pas de contrôle technique avant 4 ans.", "VÉHICULES", false], ["ENT_CUPRA", "Révision Cupra Raval (octobre)", 180, "€", "", "VÉHICULES", false], ["LAVAGE", "Lavage / petits frais auto", 15, "€/mois", "", "VÉHICULES", false], ["COURSES", "Courses alimentaires du foyer", 1000, "€/mois", "Couvre toute la famille, y compris Noah et Nina quand ils sont là (lait et petits pots du bébé à part).", "VIE COURANTE", false], ["HYGIENE", "Hygiène / beauté adultes", 0, "€/mois", "", "VIE COURANTE", false], ["MUTUELLE", "Mutuelle santé (part restant à votre charge)", 130, "€/mois", "0 si tout le foyer est couvert par une mutuelle d'entreprise.", "VIE COURANTE", true], ["RAC_SANTE", "Restes à charge santé (pharmacie, optique, dentaire)", 50, "€/mois", "", "VIE COURANTE", false], ["PREVOYANCE", "Prévoyance / assurance décès", 45, "€/mois", "Pas d'assurance emprunteur (achat comptant) : une prévoyance protège le foyer.", "VIE COURANTE", true], ["FORFAIT_JULIEN", "Forfait mobile Julien", 38, "€/mois", "", "VIE COURANTE", false], ["FORFAIT_ALEX", "Forfait mobile Alexandra", 30, "€/mois", "", "VIE COURANTE", false], ["FORFAIT_QUENTIN", "Forfait mobile Quentin", 30, "€/mois", "", "VIE COURANTE", false], ["FORFAIT_NOAH", "Forfait mobile Noah", 52, "€/mois", "", "VIE COURANTE", false], ["FORFAIT_NINA", "Forfait mobile Nina", 12, "€/mois", "", "VIE COURANTE", false], ["NUMERIQUE", "Abonnements numériques (cloud, applis)", 100, "€/mois", "", "VIE COURANTE", false], ["SORTIES", "Sorties / loisirs en famille", 0, "€/mois", "", "VIE COURANTE", false], ["SPORT_ADULTES", "Sport adultes", 0, "€/mois", "", "VIE COURANTE", false], ["VAC_ETE", "Vacances d'été (juillet + août)", 0, "€", "Moitié en juillet, moitié en août.", "VIE COURANTE", false], ["PETITES_VAC", "Escapade par période de petites vacances", 0, "€", "Février, avril et Toussaint (périodes avec Noah et Nina).", "VIE COURANTE", false], ["NOEL", "Noël (cadeaux + repas)", 1600, "€", "4 enfants + famille.", "VIE COURANTE", false], ["ANNIV", "Anniversaires / cadeaux divers", 0, "€/mois", "", "VIE COURANTE", false], ["FETES", "Fêtes (Pâques, fête des mères, fête des pères)", 50, "€/fête", "", "VIE COURANTE", false], ["BANQUE", "Frais bancaires", 50, "€/mois", "", "VIE COURANTE", false], ["ANIMAUX", "Animaux (si concerné)", 0, "€/mois", "", "VIE COURANTE", false], ["IMPOT_IR", "Impôt sur le revenu (prélèvement à la source)", 0, "€/mois", "Si non déjà déduit des revenus nets saisis plus bas.", "VIE COURANTE", true], ["IMPREVUS", "Provision imprévus", 0.05, "% du total", "Appliqué à l'ensemble des dépenses.", "VIE COURANTE", false], ["ARGENT_POCHE", "Argent de poche par ado", 100, "€/mois", "Quentin, Noah et Nina : 100 € chacun.", "QUENTIN (ado 15 ans, à temps plein)", false], ["CANTINE", "Cantine (hors juillet-août)", 0, "€/mois", "", "QUENTIN (ado 15 ans, à temps plein)", false], ["TRANSPORT_SCO", "Transport scolaire (inscription juillet)", 0, "€/an", "Tarif ayant droit Région AURA en Drôme pour 2025-2026 ; non ayant droit : 240 €.", "QUENTIN (ado 15 ans, à temps plein)", false], ["FOURNITURES", "Rentrée scolaire (août)", 0, "€", "Fournitures, sac, calculatrice…", "QUENTIN (ado 15 ans, à temps plein)", false], ["LICENCE", "Licence / cotisation sport (septembre)", 250, "€", "", "QUENTIN (ado 15 ans, à temps plein)", false], ["LOISIRS_ADO", "Loisirs / sorties ado", 0, "€/mois", "", "QUENTIN (ado 15 ans, à temps plein)", false], ["AAC", "Conduite accompagnée / AM (optionnel)", 0, "€", "Possible dès 15 ans : ~1 200-1 600 €. Placé en septembre.", "QUENTIN (ado 15 ans, à temps plein)", false], ["ACT_WE", "Sorties / activités par week-end de garde", 0, "€/week-end", "", "NOAH ET NINA (garde : un week-end sur deux + moitié des vacances)", false], ["ACT_VAC", "Activités par jour de vacances avec eux", 0, "€/jour", "", "NOAH ET NINA (garde : un week-end sur deux + moitié des vacances)", false], ["KM_ECHANGE", "Km aller-retour par trajet de garde", 0, "km", "À ajuster selon le domicile de leur mère (2 allers-retours par période).", "NOAH ET NINA (garde : un week-end sur deux + moitié des vacances)", true], ["COUT_KM", "Coût au km (mix électrique/hybride)", 0.12, "€/km", "", "NOAH ET NINA (garde : un week-end sur deux + moitié des vacances)", false], ["PENSION", "Pension alimentaire versée", 160, "€/mois", "Pension versée pour Noah et Nina : 160 € par mois au total.", "NOAH ET NINA (garde : un week-end sur deux + moitié des vacances)", true], ["COUCHES", "Couches + lingettes", 55, "€/mois", "", "BÉBÉ (naissance janvier 2027)", false], ["LAIT", "Lait infantile", 85, "€/mois", "0 en cas d'allaitement exclusif.", "BÉBÉ (naissance janvier 2027)", true], ["DIVERSIF", "Diversification alimentaire (à partir de juillet)", 45, "€/mois", "", "BÉBÉ (naissance janvier 2027)", false], ["SOINS_BB", "Soins / hygiène / pharmacie bébé", 30, "€/mois", "", "BÉBÉ (naissance janvier 2027)", false], ["MATERNITE", "Frais de maternité (chambre particulière…) (janvier)", 250, "€", "Selon la prise en charge de la mutuelle.", "BÉBÉ (naissance janvier 2027)", true], ["EQUIP_INIT", "Équipement initial restant (janvier)", 800, "€", "Poussette, siège auto, lit, table à langer… 0 si déjà acheté.", "BÉBÉ (naissance janvier 2027)", true], ["EQUIP_EVOL", "Équipement évolutif (juin)", 450, "€", "Chaise haute, parc, siège auto groupe suivant…", "BÉBÉ (naissance janvier 2027)", false], ["GARDE", "Mode de garde (assistante maternelle / crèche)", 0, "€/mois", "0 si l'un de vous garde le bébé ; sinon ~400-700 €/mois après aides CAF.", "BÉBÉ (naissance janvier 2027)", true], ["EPARGNE_BB", "Épargne bébé (Livret A enfant)", 0, "€/mois", "", "BÉBÉ (naissance janvier 2027)", false], ["REV_JU", "Revenus nets Julien", 0, "€/mois", "Net après prélèvement à la source.", "REVENUS (à renseigner pour obtenir le solde mensuel)", true], ["REV_ALEX", "Revenus nets Alexandra", 0, "€/mois", "", "REVENUS (à renseigner pour obtenir le solde mensuel)", true], ["REV_RENTE", "Rente", 4000, "€/mois", "", "REVENUS (à renseigner pour obtenir le solde mensuel)", true], ["REV_CAF", "Prestations CAF (allocations familiales, PAJE…)", 0, "€/mois", "Selon ressources et nombre d'enfants à charge — simulation sur caf.fr.", "REVENUS (à renseigner pour obtenir le solde mensuel)", true], ["REV_AUTRES", "Autres revenus", 0, "€/mois", "", "REVENUS (à renseigner pour obtenir le solde mensuel)", true]]; // [code, libellé, valeur, unité, commentaire, groupe, à confirmer]
+  const ALL = () => Array(12).fill(true);
+  const mm = (...ms) => Array.from({ length: 12 }, (_, i) => ms.includes(i + 1));
+  const rg = (a, b) => Array.from({ length: 12 }, (_, i) => i + 1 >= a && i + 1 <= b);
+  const CATS = [
+    ['logement', 'Logement', '#ef4444'], ['energie', 'Énergie et équipements techniques', '#f59e0b'], ['piscine', 'Piscine et jardin (1 783 m²)', '#0ea5e9'],
+    ['vehicules', 'Véhicules (Omoda 9 + Cupra Raval)', '#64748b'], ['alim', 'Alimentation et vie courante', '#22c55e'], ['sante', 'Santé et prévoyance', '#f43f5e'],
+    ['telecom', 'Télécoms et abonnements', '#8b5cf6'], ['bebe', 'Bébé', '#f472b6'], ['quentin', 'Quentin (ado à temps plein)', '#0891b2'],
+    ['noahnina', 'Noah et Nina (garde alternée)', '#a855f7'], ['loisirs', 'Loisirs, vacances et fêtes', '#d946ef'], ['finances', 'Finances et administratif', '#94a3b8'],
+    ['revenus', 'Revenus', '#10b981', 'income'],
+  ];
+  // [id, catégorie, libellé, base de calcul, source ('p:CODE' | 'c:calc'), mois, mode, multiplicateur]
+  const LINES = [
+    ['tf', 'logement', 'Taxe foncière', "Échéance d'octobre (ou mensualisation sur demande)", 'c:tf', mm(10), 'each'],
+    ['mrh', 'logement', 'Assurance habitation', 'Annuelle lissée sur 12 mois', 'p:MRH', ALL(), 'spread'],
+    ['eau', 'logement', 'Eau et assainissement', 'Foyer + arrosage (juin-août) + appoint piscine (mai-sept.)', 'c:eau', ALL(), 'each'],
+    ['box', 'logement', 'Box internet fibre', 'Mensuel', 'p:BOX', ALL(), 'each'],
+    ['menage', 'logement', 'Produits ménagers / petit équipement', 'Mensuel', 'p:MENAGE', ALL(), 'each'],
+    ['aidemen', 'logement', 'Aide ménagère (optionnel)', 'Mensuel', 'p:AIDE_MENAGE', ALL(), 'each'],
+    ['elec', 'energie', 'Électricité maison + piscine', 'Onglet Énergie (HP/HC, abonnement 12 kVA)', 'c:elec', ALL(), 'each'],
+    ['entpac', 'energie', 'Entretien pompe à chaleur', 'Septembre', 'p:ENT_PAC', mm(9), 'each'],
+    ['entclim', 'energie', 'Entretien climatisation', 'Avril', 'p:ENT_CLIM', mm(4), 'each'],
+    ['piscprod', 'piscine', 'Produits piscine', 'Avril à septembre', 'p:PISC_PRODUITS', rg(4, 9), 'each'],
+    ['piscouv', 'piscine', 'Remise en route piscine', 'Avril', 'p:PISC_OUVERTURE', mm(4), 'each'],
+    ['pischiv', 'piscine', 'Hivernage piscine', 'Octobre', 'p:PISC_HIVERNAGE', mm(10), 'each'],
+    ['piscprov', 'piscine', 'Provision matériel piscine', 'Mensuel', 'p:PISC_PROV', ALL(), 'each'],
+    ['jardin', 'piscine', 'Entretien jardin courant', 'Mars à octobre', 'p:JARDIN', rg(3, 10), 'each'],
+    ['palmiers', 'piscine', 'Taille des palmiers', 'Juin', 'p:PALMIERS', mm(6), 'each'],
+    ['elagage', 'piscine', 'Élagage / haies', 'Novembre', 'p:ELAGAGE', mm(11), 'each'],
+    ['jardinier', 'piscine', 'Jardinier / pisciniste (optionnel)', 'Mensuel', 'p:JARDINIER', ALL(), 'each'],
+    ['assuomoda', 'vehicules', 'Assurance Omoda 9', 'Annuelle lissée sur 12 mois', 'p:ASSU_OMODA', ALL(), 'spread'],
+    ['assucupra', 'vehicules', 'Assurance Cupra Raval', 'Annuelle lissée sur 12 mois', 'p:ASSU_CUPRA', ALL(), 'spread'],
+    ['rechdom', 'vehicules', 'Recharge à domicile', 'Onglet Énergie (heures creuses)', 'c:rechdom', ALL(), 'each'],
+    ['rechpub', 'vehicules', 'Recharge publique', 'Onglet Énergie', 'c:rechpub', ALL(), 'each'],
+    ['essence', 'vehicules', 'Essence Omoda 9', 'Onglet Énergie', 'c:essence', ALL(), 'each'],
+    ['revomoda', 'vehicules', 'Révision Omoda 9', 'Juin', 'p:ENT_OMODA', mm(6), 'each'],
+    ['revcupra', 'vehicules', 'Révision Cupra Raval', 'Octobre', 'p:ENT_CUPRA', mm(10), 'each'],
+    ['lavage', 'vehicules', 'Lavage / petits frais', 'Mensuel', 'p:LAVAGE', ALL(), 'each'],
+    ['courses', 'alim', 'Courses alimentaires du foyer', 'Toute la famille, Noah et Nina inclus', 'p:COURSES', ALL(), 'each'],
+    ['hygiene', 'alim', 'Hygiène / beauté adultes', 'Mensuel', 'p:HYGIENE', ALL(), 'each'],
+    ['mutuelle', 'sante', 'Mutuelle santé', 'Mensuel', 'p:MUTUELLE', ALL(), 'each'],
+    ['racsante', 'sante', 'Restes à charge santé', 'Mensuel', 'p:RAC_SANTE', ALL(), 'each'],
+    ['prevoyance', 'sante', 'Prévoyance / assurance décès', 'Mensuel', 'p:PREVOYANCE', ALL(), 'each'],
+    ['fjulien', 'telecom', 'Forfait mobile Julien', 'Mensuel', 'p:FORFAIT_JULIEN', ALL(), 'each'],
+    ['falex', 'telecom', 'Forfait mobile Alexandra', 'Mensuel', 'p:FORFAIT_ALEX', ALL(), 'each'],
+    ['fquentin', 'telecom', 'Forfait mobile Quentin', 'Mensuel', 'p:FORFAIT_QUENTIN', ALL(), 'each'],
+    ['fnoah', 'telecom', 'Forfait mobile Noah', 'Mensuel', 'p:FORFAIT_NOAH', ALL(), 'each'],
+    ['fnina', 'telecom', 'Forfait mobile Nina', 'Mensuel', 'p:FORFAIT_NINA', ALL(), 'each'],
+    ['numerique', 'telecom', 'Abonnements numériques', 'Mensuel', 'p:NUMERIQUE', ALL(), 'each'],
+    ['couches', 'bebe', 'Couches + lingettes', 'Dès janvier', 'p:COUCHES', ALL(), 'each'],
+    ['lait', 'bebe', 'Lait infantile', 'Dès janvier', 'p:LAIT', ALL(), 'each'],
+    ['diversif', 'bebe', 'Diversification alimentaire', 'À partir de juillet (6 mois)', 'p:DIVERSIF', rg(7, 12), 'each'],
+    ['soinsbb', 'bebe', 'Soins / hygiène / pharmacie', 'Mensuel', 'p:SOINS_BB', ALL(), 'each'],
+    ['maternite', 'bebe', 'Frais de maternité', 'Janvier', 'p:MATERNITE', mm(1), 'each'],
+    ['equipinit', 'bebe', 'Équipement initial restant', 'Janvier', 'p:EQUIP_INIT', mm(1), 'each'],
+    ['equipevol', 'bebe', 'Équipement évolutif', 'Juin', 'p:EQUIP_EVOL', mm(6), 'each'],
+    ['garde', 'bebe', 'Mode de garde', 'Mensuel', 'p:GARDE', ALL(), 'each'],
+    ['apquentin', 'quentin', 'Argent de poche', '100 € / mois', 'p:ARGENT_POCHE', ALL(), 'each'],
+    ['cantine', 'quentin', 'Cantine', 'Hors juillet-août', 'p:CANTINE', ALL().map((v, i) => i !== 6 && i !== 7), 'each'],
+    ['transco', 'quentin', 'Transport scolaire', 'Inscription en juillet', 'p:TRANSPORT_SCO', mm(7), 'each'],
+    ['rentree', 'quentin', 'Rentrée scolaire', 'Août', 'p:FOURNITURES', mm(8), 'each'],
+    ['licence', 'quentin', 'Licence sportive', 'Septembre', 'p:LICENCE', mm(9), 'each'],
+    ['loisado', 'quentin', 'Loisirs / sorties', 'Mensuel', 'p:LOISIRS_ADO', ALL(), 'each'],
+    ['aac', 'quentin', 'Conduite accompagnée (optionnel)', 'Septembre', 'p:AAC', mm(9), 'each'],
+    ['actwe', 'noahnina', 'Sorties les week-ends de garde', 'Week-ends × forfait (onglet Présence)', 'c:actwe', ALL(), 'each'],
+    ['actvac', 'noahnina', 'Activités pendant les vacances', 'Jours de vacances × forfait (onglet Présence)', 'c:actvac', ALL(), 'each'],
+    ['trajets', 'noahnina', 'Trajets de garde', 'Périodes × 2 allers-retours × km × €/km', 'c:trajets', ALL(), 'each'],
+    ['apnn', 'noahnina', 'Argent de poche (×2)', '100 € / mois chacun', 'p:ARGENT_POCHE', ALL(), 'each', 2],
+    ['pension', 'noahnina', 'Pension alimentaire', 'Mensuel', 'p:PENSION', ALL(), 'each'],
+    ['vacete', 'loisirs', "Vacances d'été", 'Moitié en juillet, moitié en août', 'p:VAC_ETE', mm(7, 8), 'spread'],
+    ['escapades', 'loisirs', 'Escapades petites vacances', 'Février, avril, novembre', 'p:PETITES_VAC', mm(2, 4, 11), 'each'],
+    ['sorties', 'loisirs', 'Sorties / loisirs en famille', 'Mensuel', 'p:SORTIES', ALL(), 'each'],
+    ['sport', 'loisirs', 'Sport adultes', 'Mensuel', 'p:SPORT_ADULTES', ALL(), 'each'],
+    ['noel', 'loisirs', 'Noël', 'Décembre', 'p:NOEL', mm(12), 'each'],
+    ['anniv', 'loisirs', 'Anniversaires / cadeaux', 'Mensuel', 'p:ANNIV', ALL(), 'each'],
+    ['fetes', 'loisirs', 'Fêtes (Pâques, mères, pères)', 'Mars ou avril, mai, juin', 'p:FETES', mm(3, 5, 6), 'each'],
+    ['banque', 'finances', 'Frais bancaires', 'Mensuel', 'p:BANQUE', ALL(), 'each'],
+    ['impot', 'finances', 'Impôt sur le revenu', 'Si non déduit des revenus', 'p:IMPOT_IR', ALL(), 'each'],
+    ['eparbb', 'finances', 'Épargne bébé', 'Mensuel', 'p:EPARGNE_BB', ALL(), 'each'],
+    ['animaux', 'finances', 'Animaux', 'Mensuel', 'p:ANIMAUX', ALL(), 'each'],
+    ['revju', 'revenus', 'Revenus nets Julien', 'Hypothèses', 'p:REV_JU', ALL(), 'each'],
+    ['revalex', 'revenus', 'Revenus nets Alexandra', 'Hypothèses', 'p:REV_ALEX', ALL(), 'each'],
+    ['revrente', 'revenus', 'Rente', 'Hypothèses', 'p:REV_RENTE', ALL(), 'each'],
+    ['revcaf', 'revenus', 'Prestations CAF', 'Hypothèses', 'p:REV_CAF', ALL(), 'each'],
+    ['revautres', 'revenus', 'Autres revenus', 'Hypothèses', 'p:REV_AUTRES', ALL(), 'each'],
+  ];
+  const CALCS = {
+    tf: { label: 'Taxe foncière × (1 + revalorisation)', base: (P) => (P.TF_BASE || 0) * (1 + (P.TF_REVAL || 0)) },
+    eau: { label: 'Eau : foyer/12 + arrosage (juin-août) + piscine (mai-sept.) × prix du m³', monthly: (P) => MS.map((_, i) => { const m = i + 1; return ((P.EAU_FOYER || 0) / 12 + (m >= 6 && m <= 8 ? (P.EAU_JARDIN || 0) / 3 : 0) + (m >= 5 && m <= 9 ? (P.EAU_PISCINE || 0) / 5 : 0)) * (P.EAU_PRIX || 0); }) },
+    elec: { label: 'Coût électricité maison + piscine (onglet Énergie)', monthly: (P, E) => E.costHouse },
+    rechdom: { label: 'Recharge véhicules à domicile (onglet Énergie)', monthly: (P, E) => E.costCharge },
+    rechpub: { label: 'Recharge publique Cupra (onglet Énergie)', monthly: (P, E) => E.costPublic },
+    essence: { label: 'Essence Omoda 9 (onglet Énergie)', monthly: (P, E) => E.costFuel },
+    actwe: { label: 'Week-ends de garde × forfait par week-end', monthly: (P, E, hb) => hb.presence.weekends.map(v => (Number(v) || 0) * (P.ACT_WE || 0)) },
+    actvac: { label: 'Jours de vacances × forfait par jour', monthly: (P, E, hb) => hb.presence.vacDays.map(v => (Number(v) || 0) * (P.ACT_VAC || 0)) },
+    trajets: { label: 'Périodes de garde × 2 × km × €/km', monthly: (P, E, hb) => hb.presence.periods.map(v => (Number(v) || 0) * 2 * (P.KM_ECHANGE || 0) * (P.COUT_KM || 0)) },
+  };
+  const NOTES = `• Mois les plus lourds : octobre (taxe foncière), décembre (Noël), juin (chauffage piscine, révision Omoda, équipement bébé) et janvier (naissance, chauffage).
+• Octobre concentre la taxe foncière, l'hivernage piscine et la révision de la Cupra : à anticiper.
+• Pas de taxe d'habitation (résidence principale) ni de contrôle technique (véhicules neufs) en 2027. Pas de crédit : maison payée comptant.
+• Les hypothèses marquées « à confirmer » sont à remplacer par vos devis/factures réels.`;
+
+  function defaults() {
+    return {
+      v: 1, year: 2027, title: 'Budget maison Jaillans',
+      household: 'Julien, Alexandra, Quentin (15 ans), bébé né en janvier 2027 + Noah (15 ans) et Nina (14 ans) un week-end sur deux et la moitié des vacances. Maison payée comptant : pas de crédit.',
+      params: PARAMS.map(([code, label, value, unit, note, group, confirm]) => ({ code, label, value, unit, note, group, confirm })),
+      cats: CATS.map(([id, name, color, kind]) => ({ id, name, color, kind: kind || 'expense' })),
+      lines: LINES.map(([id, cat, label, basis, src, months, mode, mult]) => ({ id, cat, label, basis, src: src[0] === 'p' ? 'param' : 'calc', param: src[0] === 'p' ? src.slice(2) : '', calc: src[0] === 'c' ? src.slice(2) : '', amount: 0, months, mode, mult: mult || 1, active: true })),
+      energy: {
+        houseProfile: [0.13, 0.115, 0.095, 0.07, 0.055, 0.055, 0.07, 0.07, 0.055, 0.07, 0.095, 0.12],
+        filtration: [30, 30, 60, 90, 180, 200, 220, 220, 180, 90, 30, 30],
+        poolHeat: [0, 0, 0, 0, 0, 500, 250, 200, 400, 0, 0, 0],
+      },
+      presence: {
+        days: [5, 9.5, 5, 9.5, 5, 5, 18, 17.5, 5, 5, 9.5, 11],
+        periods: [2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 4],
+        vacDays: [0, 7, 0, 7, 0, 0, 13, 15, 0, 0, 7, 6],
+        weekends: [2, 1, 2, 1, 2, 2, 2, 1, 2, 2, 1, 2],
+        note: "Rythme : week-ends des semaines paires (vendredi soir → dimanche soir, vendredi compté ½ journée) + vacances 2027 : 22-28 févr., 19-25 avr., 19 juil.-1er août, 16-29 août, 1er-7 nov., 25 déc., 27 déc.-2 janv. Le week-end des 1er-3 janvier tombe en vacances chez leur mère.",
+      },
+      overrides: {}, notes: NOTES, planLink: null,
+    };
+  }
+  function ensure(hb) {
+    const d = defaults();
+    if (!hb || typeof hb !== 'object') return d;
+    hb = Object.assign({}, d, hb);
+    hb.params = Array.isArray(hb.params) ? hb.params : d.params;
+    hb.cats = Array.isArray(hb.cats) && hb.cats.length ? hb.cats : d.cats;
+    hb.lines = Array.isArray(hb.lines) ? hb.lines : d.lines;
+    hb.lines.forEach(l => { if (!Array.isArray(l.months) || l.months.length !== 12) l.months = ALL(); if (l.mult == null) l.mult = 1; if (l.active === undefined) l.active = true; });
+    hb.energy = Object.assign({}, d.energy, hb.energy || {}); hb.presence = Object.assign({}, d.presence, hb.presence || {});
+    ['houseProfile', 'filtration', 'poolHeat'].forEach(k => { if (!Array.isArray(hb.energy[k]) || hb.energy[k].length !== 12) hb.energy[k] = d.energy[k]; });
+    ['days', 'periods', 'vacDays', 'weekends'].forEach(k => { if (!Array.isArray(hb.presence[k]) || hb.presence[k].length !== 12) hb.presence[k] = d.presence[k]; });
+    hb.overrides = hb.overrides || {};
+    return hb;
+  }
+  const pmap = (hb) => { const P = {}; hb.params.forEach(p => P[p.code] = Number(p.value) || 0); return P; };
+  function energy(hb, P) {
+    const e = hb.energy; const r = (a) => a.map(v => Number(v) || 0);
+    const kwhHouse = r(e.houseProfile).map(p => (P.MAISON_KWH || 0) * p), filt = r(e.filtration), heat = r(e.poolHeat);
+    const cupra = (P.CUPRA_KM || 0) * (P.CUPRA_CONSO || 0) / 100 * (P.CUPRA_DOM || 0) * (1 + (P.PERTES || 0)) / 12;
+    const omoda = (P.OMODA_KM || 0) * (P.OMODA_ELEC || 0) * (P.OMODA_KWH || 0) / 100 * (1 + (P.PERTES || 0)) / 12;
+    const up = 1 + (P.HAUSSE_ELEC || 0), mix = (P.PART_HC || 0) * (P.PRIX_HC || 0) + (1 - (P.PART_HC || 0)) * (P.PRIX_HP || 0);
+    const kCupra = Array(12).fill(cupra), kOmoda = Array(12).fill(omoda);
+    const kTotal = MS.map((_, i) => kwhHouse[i] + filt[i] + heat[i] + cupra + omoda);
+    const costHouse = MS.map((_, i) => (kwhHouse[i] * mix + (filt[i] + heat[i]) * (P.PRIX_HP || 0) + (P.ABO_ELEC || 0) / 12) * up);
+    const costCharge = MS.map(() => (cupra + omoda) * (P.PRIX_HC || 0) * up);
+    const costPublic = Array(12).fill((P.CUPRA_KM || 0) * (P.CUPRA_CONSO || 0) / 100 * (1 - (P.CUPRA_DOM || 0)) * (P.PRIX_PUB || 0) / 12);
+    const costFuel = Array(12).fill((P.OMODA_KM || 0) * (1 - (P.OMODA_ELEC || 0)) * (P.OMODA_L || 0) / 100 * (P.PRIX_ESS || 0) / 12);
+    return { kwhHouse, filt, heat, kCupra, kOmoda, kTotal, costHouse, costCharge, costPublic, costFuel };
+  }
+  function lineCalc(hb, l, P, E) {
+    let arr; const mult = l.mult == null || l.mult === '' ? 1 : Number(l.mult);
+    const c = l.src === 'calc' ? CALCS[l.calc] : null;
+    if (c && c.monthly) arr = c.monthly(P, E, hb).map((v, i) => l.months[i] ? v * mult : 0);
+    else {
+      const base = (l.src === 'param' ? (P[l.param] || 0) : c ? c.base(P) : Number(l.amount) || 0) * mult;
+      const n = l.months.filter(Boolean).length || 1;
+      arr = l.months.map(on => on ? (l.mode === 'spread' ? base / n : base) : 0);
+    }
+    return arr;
+  }
+  function compute(hb) {
+    const P = pmap(hb), E = energy(hb, P); const lines = {}, auto = {};
+    hb.lines.forEach(l => {
+      const a = lineCalc(hb, l, P, E); auto[l.id] = a;
+      const ov = hb.overrides[l.id] || {};
+      lines[l.id] = l.active === false ? Array(12).fill(0) : a.map((v, i) => ov[i] !== undefined && ov[i] !== null ? Number(ov[i]) : v);
+    });
+    const cats = {}; hb.cats.forEach(c => cats[c.id] = Array(12).fill(0));
+    hb.lines.forEach(l => { if (cats[l.cat]) lines[l.id].forEach((v, i) => cats[l.cat][i] += v); });
+    const isInc = (c) => c.kind === 'income';
+    const sub = Array(12).fill(0), inc = Array(12).fill(0);
+    hb.cats.forEach(c => cats[c.id].forEach((v, i) => { if (isInc(c)) inc[i] += v; else sub[i] += v; }));
+    const imp = sub.map(v => v * (P.IMPREVUS || 0)); const total = sub.map((v, i) => v + imp[i]);
+    const solde = inc.map((v, i) => v - total[i]); let cum = 0; const cumul = solde.map(v => (cum += v));
+    const sum = (a) => a.reduce((s, x) => s + x, 0);
+    return { P, E, lines, auto, cats, sub, imp, total, inc, solde, cumul, sum };
+  }
+  return { MS, CALCS, defaults, ensure, compute, pmap };
+})();
+
+/* --- branchement dans l'application --- */
+(function () {
+  const i = VIEWS.findIndex(v => v[0] === 'projects');
+  VIEWS.splice(i >= 0 ? i : VIEWS.length, 0, ['housebudget', '🏡', 'Budget maison 2027', 'Plan']);
+  const _migrate = migrate;
+  migrate = function (st) { st = _migrate(st); if (st) st.houseBudget = HB.ensure(st.houseBudget); return st; };
+  const css = document.createElement('style');
+  css.textContent = `
+  .hb-tbl td,.hb-tbl th{padding:.25rem .4rem}
+  .hb-tbl input.hbc{width:74px;text-align:right;padding:.2rem .3rem;border:1px solid transparent;border-radius:6px;background:transparent;font-variant-numeric:tabular-nums}
+  .hb-tbl input.hbc:hover{border-color:var(--border)}
+  .hb-tbl input.hbc:focus{border-color:var(--primary);background:var(--surface);outline:none}
+  .hb-tbl input.hbc.ov{background:var(--warn-soft);font-weight:600}
+  .hb-tbl tr.cat td{font-weight:700;background:color-mix(in srgb,var(--c) 10%,var(--surface))}
+  .hb-tbl tr.cat td.sticky{border-left:4px solid var(--c)}
+  .hb-tbl tr.off td{opacity:.45}
+  .hb-tbl .lbl{min-width:230px;max-width:300px}
+  .hb-tbl .lbl .b{font-size:.78em;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:290px}
+  .hb-tbl button.ed{border:0;background:none;cursor:pointer;color:var(--muted);padding:0 .25rem}
+  .hb-tbl button.ed:hover{color:var(--primary)}
+  .hb-par input.hbp{width:110px;text-align:right}
+  .hb-par td:nth-child(4){min-width:220px;max-width:420px;white-space:normal}
+  .hb-par td:first-child{min-width:220px;white-space:normal}
+  .hb-par tr.confirm td{background:color-mix(in srgb,#facc15 16%,transparent)}
+  .hb-months{display:grid;grid-template-columns:repeat(6,1fr);gap:.3rem}
+  .hb-months label{display:flex;gap:.25rem;align-items:center;font-size:.85rem;border:1px solid var(--border);border-radius:8px;padding:.25rem .4rem;cursor:pointer}
+  @media (max-width:600px){.hb-months{grid-template-columns:repeat(4,1fr)}}`;
+  document.head.appendChild(css);
+})();
+
+const hbS = () => state.houseBudget;
+const hbIn = (v, keep) => { if (v === null || v === undefined || v === '') return ''; const r = Math.round(Number(v) * 100) / 100; if (!keep && Math.abs(r) < 0.005) return ''; return String(r).replace('.', ','); };
+const hbPct = (u) => /%/.test(u || '');
+const hbParamDisplay = (p) => hbPct(p.unit) ? hbIn(Number(p.value) * 100, true) : hbIn(p.value, true);
+
+/* synchronisation optionnelle avec le plan (surcharges mensuelles d'une règle de dépense) */
+function hbSyncPlan(st = state) {
+  const hb = st.houseBudget; const lk = hb && hb.planLink; if (!lk) return;
+  const sc = st.scenarios.find(s => s.id === lk.scId); if (!sc || !sc.rules.some(r => r.id === lk.ruleId)) return;
+  const c = HB.compute(hb);
+  (lk.months || []).forEach(ym => { if (sc.overrides[ym]) { delete sc.overrides[ym][lk.ruleId]; if (!Object.keys(sc.overrides[ym]).length) delete sc.overrides[ym]; } });
+  lk.months = [];
+  c.total.forEach((v, i) => { const ym = `${hb.year}-${String(i + 1).padStart(2, '0')}`; sc.overrides[ym] = sc.overrides[ym] || {}; sc.overrides[ym][lk.ruleId] = Math.round(v * 100) / 100; lk.months.push(ym); });
+}
+function hbUnlink() {
+  const hb = hbS(); const lk = hb.planLink; if (!lk) return;
+  const sc = state.scenarios.find(s => s.id === lk.scId);
+  if (sc) (lk.months || []).forEach(ym => { if (sc.overrides[ym]) { delete sc.overrides[ym][lk.ruleId]; if (!Object.keys(sc.overrides[ym]).length) delete sc.overrides[ym]; } });
+  hb.planLink = null;
+}
+/* enregistre en gardant le focus (navigation au clavier) et la position de défilement */
+function hbCommit(msg, mutate) {
+  setTimeout(() => {
+    const ae = document.activeElement; const nextK = ae && ae.dataset ? ae.dataset.k : null;
+    const scrolls = $$('[data-scroll]').map(el => [el.dataset.scroll, el.scrollLeft, el.scrollTop]);
+    beginEdit(); mutate(); hbSyncPlan(); commit(msg);
+    scrolls.forEach(([k, l, t]) => { const el = document.querySelector(`[data-scroll="${k}"]`); if (el) { el.scrollLeft = l; el.scrollTop = t; } });
+    if (nextK) { const el = document.querySelector(`[data-k="${CSS.escape(nextK)}"]`); if (el) { el.focus({ preventScroll: true }); if (el.select) el.select(); } }
+  }, 0);
+}
+function hbBindCells(root, onSet) {
+  $$('input[data-k]', root).forEach(inp => {
+    inp.addEventListener('focus', () => inp.select());
+    inp.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return; e.preventDefault();
+      const col = inp.dataset.col; const all = col ? $$(`input[data-col="${col}"]`, root) : $$('input[data-k]', root);
+      const nx = all[all.indexOf(inp) + (e.shiftKey ? -1 : 1)]; if (nx) nx.focus(); else inp.blur();
+    });
+    inp.addEventListener('change', () => { if (inp.value.trim() === (inp.dataset.orig || '').trim()) return; onSet(inp); });
+  });
+}
+
+Views.housebudget = function () {
+  const hb = hbS(); const tab = ui.hbTab || 'synth'; const c = HB.compute(hb); const MS = HB.MS;
+  const tabs = [['synth', 'Synthèse'], ['budget', 'Budget mensuel'], ['params', `Hypothèses (${hb.params.length})`], ['energy', 'Énergie'], ['presence', 'Présence Noah & Nina']];
+  const exp = hb.cats.filter(x => x.kind !== 'income');
+  const totY = c.sum(c.total), incY = c.sum(c.inc), solY = incY - totY;
+  const heavy = c.total.map((v, i) => [v, i]).sort((a, b) => b[0] - a[0]).slice(0, 3);
+  const nConfirm = hb.params.filter(p => p.confirm).length;
+  const head = `<div class="card mb"><div class="flex wrap between"><div><h2 style="margin:0">🏡 ${esc(hb.title)} ${hb.year}</h2><div class="small muted">${esc(hb.household || '')}</div></div>
+    <div class="flex wrap"><button class="btn sm" id="hbSettings">⚙ Réglages</button><button class="btn sm" id="hbCsv">Export CSV</button><button class="btn sm" id="hbPrint">🖨 Imprimer</button></div></div>
+    ${hb.planLink ? `<div class="alert ok mt" style="margin-bottom:0"><span>🔗</span><span>Relié au plan : les totaux mensuels ${hb.year} remplacent la règle <b>${esc(nameOf((state.scenarios.find(s => s.id === hb.planLink.scId) || { rules: [] }).rules, hb.planLink.ruleId))}</b> du scénario <b>${esc(nameOf(state.scenarios, hb.planLink.scId))}</b>. <button class="btn sm" id="hbLink">Modifier</button></span></div>` : ''}</div>
+    <div class="tabs">${tabs.map(([k, l]) => `<button data-hb-tab="${k}" class="${tab === k ? 'active' : ''}">${l}</button>`).join('')}</div>`;
+  let body = '';
+  if (tab === 'synth') {
+    body = `<div class="grid g4 mb">
+      <div class="card kpi"><div class="lbl">Total dépenses ${hb.year}</div><div class="val">${fmtMoney(totY)}</div><div class="sub">dont imprévus ${fmtMoney(c.sum(c.imp))}</div></div>
+      <div class="card kpi"><div class="lbl">Moyenne par mois</div><div class="val">${fmtMoney(totY / 12)}</div><div class="sub">hors imprévus : ${fmtMoney(c.sum(c.sub) / 12)}</div></div>
+      <div class="card kpi"><div class="lbl">Revenus saisis</div><div class="val">${fmtMoney(incY)}</div><div class="sub">${fmtMoney(incY / 12)} / mois</div></div>
+      <div class="card kpi"><div class="lbl">Solde de l'année</div><div class="val">${signed(solY)}</div><div class="sub">mois le plus lourd : ${MS[heavy[0][1]]} (${fmtMoney(heavy[0][0])})</div></div></div>
+      ${nConfirm ? `<div class="alert warn mb"><span>⚠</span><span>${nConfirm} hypothèse(s) à confirmer avec un devis, une facture ou votre situation réelle. <button class="btn sm" id="hbGoConfirm">Voir</button></span></div>` : ''}
+      <div class="grid g2 mb"><div class="card"><h3>Dépenses par mois</h3><div class="chart tall"><canvas id="hbChMonths"></canvas></div></div>
+      <div class="card"><h3>Répartition de l'année</h3><div class="chart tall"><canvas id="hbChShare"></canvas></div></div></div>
+      <div class="card mb"><h3>Synthèse par catégorie</h3><div class="tbl-wrap" data-scroll="synth"><table class="hb-tbl"><thead><tr><th class="sticky">Catégorie</th><th class="num">Part</th>${MS.map(m => `<th class="num">${m}</th>`).join('')}<th class="num">Total ${hb.year}</th><th class="num">Moy./mois</th></tr></thead><tbody>
+      ${exp.map(x => { const t = c.sum(c.cats[x.id]); return `<tr><td class="sticky"><span class="legend-dot" style="background:${x.color}"></span> ${esc(x.name)}</td><td class="num">${totY ? fmtPct(t / totY) : '—'}</td>${c.cats[x.id].map(v => `<td class="num">${fmtMoney(v)}</td>`).join('')}<td class="num"><b>${fmtMoney(t)}</b></td><td class="num">${fmtMoney(t / 12)}</td></tr>`; }).join('')}
+      <tr><td class="sticky">Provision imprévus (${fmtNum((c.P.IMPREVUS || 0) * 100, 1)} %)</td><td class="num">${totY ? fmtPct(c.sum(c.imp) / totY) : '—'}</td>${c.imp.map(v => `<td class="num">${fmtMoney(v)}</td>`).join('')}<td class="num"><b>${fmtMoney(c.sum(c.imp))}</b></td><td class="num">${fmtMoney(c.sum(c.imp) / 12)}</td></tr>
+      <tr class="total"><td class="sticky">TOTAL DÉPENSES</td><td class="num">100 %</td>${c.total.map(v => `<td class="num">${fmtMoney(v)}</td>`).join('')}<td class="num">${fmtMoney(totY)}</td><td class="num">${fmtMoney(totY / 12)}</td></tr>
+      <tr><td class="sticky">Revenus saisis</td><td></td>${c.inc.map(v => `<td class="num">${fmtMoney(v)}</td>`).join('')}<td class="num">${fmtMoney(incY)}</td><td class="num">${fmtMoney(incY / 12)}</td></tr>
+      <tr class="total"><td class="sticky">Solde</td><td></td>${c.solde.map(v => `<td class="num">${signed(v)}</td>`).join('')}<td class="num">${signed(solY)}</td><td class="num">${signed(solY / 12)}</td></tr>
+      <tr><td class="sticky muted">Solde cumulé</td><td></td>${c.cumul.map(v => `<td class="num small">${signed(v)}</td>`).join('')}<td></td><td></td></tr>
+      </tbody></table></div></div>
+      <div class="card"><h3>Repères <span class="actions small muted">modifiable</span></h3><p class="small muted" style="margin-top:0">Calcul actuel : mois les plus lourds = ${heavy.map(([v, i]) => `<b>${MS[i]}</b> (${fmtMoney(v)})`).join(', ')}.</p><textarea id="hbNotes" rows="6" style="width:100%">${esc(hb.notes || '')}</textarea></div>`;
+  } else if (tab === 'budget') {
+    let r = 0;
+    const rowsFor = (x) => hb.lines.filter(l => l.cat === x.id).map(l => {
+      const ov = hb.overrides[l.id] || {}; const vals = c.lines[l.id]; r++;
+      const src = l.src === 'param' ? (hb.params.find(p => p.code === l.param) || {}).label || l.param : l.src === 'calc' ? 'calcul automatique' : 'montant fixe';
+      return `<tr class="${l.active === false ? 'off' : ''}"><td class="sticky lbl"><div class="flex" style="gap:.2rem"><button class="ed" data-hb-line="${l.id}" title="Modifier le poste">✎</button><span>${esc(l.label)}</span></div><div class="b" title="${esc(l.basis || '')} — ${esc(src)}">${esc(l.basis || '')}</div></td>
+      ${vals.map((v, i) => { const isOv = ov[i] !== undefined && ov[i] !== null; const d = hbIn(v, isOv); return `<td class="num"><input class="hbc ${isOv ? 'ov' : ''}" inputmode="decimal" data-k="c|${l.id}|${i}" data-col="${i}" data-orig="${d}" value="${d}" placeholder="–" ${l.active === false ? 'disabled' : ''} title="${isOv ? 'Saisi à la main (calcul : ' + hbIn(c.auto[l.id][i], true) + ' €). Videz la case pour revenir au calcul.' : 'Calculé — tapez un montant pour le remplacer ce mois-ci'}"></td>`; }).join('')}
+      <td class="num"><b>${fmtMoney(c.sum(vals))}</b></td><td class="num muted">${fmtMoney(c.sum(vals) / 12)}</td></tr>`;
+    }).join('');
+    const catBlock = (x) => `<tr class="cat" style="--c:${x.color}"><td class="sticky"><div class="flex" style="gap:.2rem"><button class="ed" data-hb-cat="${x.id}" title="Modifier la catégorie">✎</button>${esc(x.name.toUpperCase())}</div></td>${c.cats[x.id].map(v => `<td class="num">${fmtMoney(v)}</td>`).join('')}<td class="num">${fmtMoney(c.sum(c.cats[x.id]))}</td><td class="num">${fmtMoney(c.sum(c.cats[x.id]) / 12)}</td></tr>${rowsFor(x)}`;
+    const nOv = Object.values(hb.overrides).reduce((s, o) => s + Object.keys(o).length, 0);
+    body = `<div class="flex wrap mb"><p class="small muted grow" style="margin:0">Chaque case est modifiable : tapez un montant pour remplacer le calcul ce mois-ci (fond orange), videz-la pour revenir au calcul. ✎ pour changer un poste (hypothèse liée, mois, répartition…). Entrée = case du dessous.</p>
+      ${nOv ? `<button class="btn sm" id="hbClearOv">Effacer les ${nOv} saisie(s) manuelle(s)</button>` : ''}<button class="btn sm" id="hbAddCat">+ Catégorie</button><button class="btn sm primary" id="hbAddLine">+ Poste</button></div>
+      <div class="tbl-wrap tall" data-scroll="budget"><table class="hb-tbl"><thead><tr><th class="sticky">Poste</th>${MS.map(m => `<th class="num">${m}</th>`).join('')}<th class="num">Total ${hb.year}</th><th class="num">Moy./mois</th></tr></thead><tbody>
+      ${exp.map(catBlock).join('')}
+      <tr class="total"><td class="sticky">SOUS-TOTAL DES DÉPENSES</td>${c.sub.map(v => `<td class="num">${fmtMoney(v)}</td>`).join('')}<td class="num">${fmtMoney(c.sum(c.sub))}</td><td class="num">${fmtMoney(c.sum(c.sub) / 12)}</td></tr>
+      <tr><td class="sticky">Provision imprévus <span class="small muted">(${fmtNum((c.P.IMPREVUS || 0) * 100, 1)} % du sous-total, hypothèse IMPREVUS)</span></td>${c.imp.map(v => `<td class="num">${fmtMoney(v)}</td>`).join('')}<td class="num">${fmtMoney(c.sum(c.imp))}</td><td class="num">${fmtMoney(c.sum(c.imp) / 12)}</td></tr>
+      <tr class="total"><td class="sticky">TOTAL DÉPENSES DU MOIS</td>${c.total.map(v => `<td class="num">${fmtMoney(v)}</td>`).join('')}<td class="num">${fmtMoney(totY)}</td><td class="num">${fmtMoney(totY / 12)}</td></tr>
+      ${hb.cats.filter(x => x.kind === 'income').map(catBlock).join('')}
+      <tr class="total"><td class="sticky">SOLDE DU MOIS (revenus − dépenses)</td>${c.solde.map(v => `<td class="num">${signed(v)}</td>`).join('')}<td class="num">${signed(solY)}</td><td></td></tr>
+      <tr><td class="sticky">SOLDE CUMULÉ</td>${c.cumul.map(v => `<td class="num">${signed(v)}</td>`).join('')}<td></td><td></td></tr>
+      </tbody></table></div>`;
+  } else if (tab === 'params') {
+    const groups = [...new Set(hb.params.map(p => p.group || 'Autres'))];
+    const only = ui.hbConfirmOnly;
+    const used = new Set(hb.lines.filter(l => l.src === 'param').map(l => l.param));
+    body = `<div class="flex wrap mb"><p class="small muted grow" style="margin:0">Modifiez une valeur : tout le budget se recalcule. Cochez « à confirmer » tant que le montant n'est pas validé par un devis ou une facture (fond jaune).</p>
+      <label class="switch"><input type="checkbox" id="hbOnlyConf" ${only ? 'checked' : ''}> À confirmer uniquement</label><button class="btn sm primary" id="hbAddParam">+ Hypothèse</button></div>
+      ${groups.map(g => { const ps = hb.params.filter(p => (p.group || 'Autres') === g && (!only || p.confirm)); if (!ps.length) return ''; return `<div class="card mb"><h3>${esc(g)}</h3><div class="tbl-wrap"><table class="hb-par"><thead><tr><th>Hypothèse</th><th class="num">Valeur</th><th>Unité</th><th>Source / commentaire</th><th class="center">À confirmer</th><th></th></tr></thead><tbody>
+        ${ps.map(p => `<tr class="${p.confirm ? 'confirm' : ''}"><td>${esc(p.label)}<div class="small muted">${esc(p.code)}${used.has(p.code) || /^(TF_|EAU_|PRIX_|ABO_|HAUSSE|PART_HC|MAISON|PERTES|CUPRA_|OMODA_|ACT_|KM_|COUT_KM|IMPREVUS)/.test(p.code) ? '' : ' · <span class="warn">non utilisée</span>'}</div></td>
+          <td class="num"><input class="hbp" inputmode="decimal" data-k="p|${esc(p.code)}" data-orig="${hbParamDisplay(p)}" value="${hbParamDisplay(p)}"></td><td class="small nowrap">${esc(p.unit || '')}</td><td class="small muted">${esc(p.note || '')}</td>
+          <td class="center"><input type="checkbox" data-hb-conf="${esc(p.code)}" ${p.confirm ? 'checked' : ''}></td><td class="nowrap"><button class="btn sm icon" data-hb-par="${esc(p.code)}" title="Modifier">✎</button></td></tr>`).join('')}
+        </tbody></table></div></div>`; }).join('')}`;
+  } else if (tab === 'energy') {
+    const E = c.E; const row = (lbl, arr, key, dec = 0, money = false) => `<tr><td class="sticky">${lbl}</td><td class="num"><b>${money ? fmtMoney(c.sum(arr)) : fmtNum(c.sum(arr), dec)}</b></td>${arr.map((v, i) => key ? `<td class="num"><input class="hbc" inputmode="decimal" data-k="e|${key}|${i}" data-col="${i}" data-orig="${hbIn(key === 'houseProfile' ? v * 100 : v, true)}" value="${hbIn(key === 'houseProfile' ? v * 100 : v, true)}"></td>` : `<td class="num">${money ? fmtMoney(v) : fmtNum(v, dec)}</td>`).join('')}</tr>`;
+    const prof = c.sum(hb.energy.houseProfile.map(Number));
+    body = `<p class="small muted">Abonnement ${fmtNum(c.P.ABO_ELEC, 2)} €/an en Heures Pleines / Heures Creuses (HP ${fmtNum(c.P.PRIX_HP, 4)} € · HC ${fmtNum(c.P.PRIX_HC, 4)} € · hausse ${fmtNum(c.P.HAUSSE_ELEC * 100, 1)} %). Les profils mensuels (cases) sont modifiables ; les prix, km et consommations se règlent dans Hypothèses.</p>
+      ${Math.abs(prof - 1) > 0.001 ? `<div class="alert warn mb"><span>⚠</span><span>Le profil de consommation de la maison totalise ${fmtNum(prof * 100, 1)} % au lieu de 100 % : la consommation annuelle s'en trouve ${prof > 1 ? 'augmentée' : 'réduite'}.</span></div>` : ''}
+      <div class="tbl-wrap" data-scroll="energy"><table class="hb-tbl"><thead><tr><th class="sticky">Ligne</th><th class="num">Total</th>${MS.map(m => `<th class="num">${m}</th>`).join('')}</tr></thead><tbody>
+      <tr class="cat" style="--c:#f59e0b"><td class="sticky" colspan="14">Consommations (kWh)</td></tr>
+      <tr><td class="sticky">Profil de consommation maison (% de l'année)</td><td class="num"><b>${fmtNum(prof * 100, 1)} %</b></td>${hb.energy.houseProfile.map((v, i) => `<td class="num"><input class="hbc" inputmode="decimal" data-k="e|houseProfile|${i}" data-col="${i}" data-orig="${hbIn(Number(v) * 100, true)}" value="${hbIn(Number(v) * 100, true)}"></td>`).join('')}</tr>
+      ${row('kWh maison (chauffage, clim, ECS, électroménager)', E.kwhHouse)}
+      ${row('kWh filtration piscine', hb.energy.filtration.map(Number), 'filtration')}
+      ${row('kWh pompe à chaleur piscine', hb.energy.poolHeat.map(Number), 'poolHeat')}
+      ${row('kWh recharge Cupra Raval à domicile', E.kCupra)}
+      ${row('kWh recharge Omoda 9 à domicile', E.kOmoda)}
+      <tr class="total"><td class="sticky">kWh total compteur</td><td class="num">${fmtNum(c.sum(E.kTotal))}</td>${E.kTotal.map(v => `<td class="num">${fmtNum(v)}</td>`).join('')}</tr>
+      <tr class="cat" style="--c:#f59e0b"><td class="sticky" colspan="14">Coûts (€)</td></tr>
+      ${row('Électricité maison + piscine (abonnement inclus)', E.costHouse, null, 0, true)}
+      ${row('Recharge véhicules à domicile (heures creuses)', E.costCharge, null, 0, true)}
+      ${row('Recharge publique Cupra', E.costPublic, null, 0, true)}
+      ${row('Essence Omoda 9', E.costFuel, null, 0, true)}
+      </tbody></table></div><div class="card mt"><h3>Coût énergie par mois</h3><div class="chart"><canvas id="hbChEnergy"></canvas></div></div>`;
+  } else if (tab === 'presence') {
+    const pr = hb.presence; const lines = [['days', 'Jours de présence (par enfant)'], ['periods', 'Périodes de garde (= échanges aller + retour)'], ['vacDays', 'Jours de vacances avec eux'], ['weekends', 'Week-ends de garde hors vacances']];
+    body = `<p class="small muted">Ces chiffres alimentent les postes « Sorties les week-ends », « Activités pendant les vacances » et « Trajets de garde » (forfaits ACT_WE, ACT_VAC, KM_ECHANGE, COUT_KM dans Hypothèses). Toutes les cases sont modifiables.</p>
+      <div class="tbl-wrap mb" data-scroll="presence"><table class="hb-tbl"><thead><tr><th class="sticky">Indicateur</th><th class="num">Total</th>${MS.map(m => `<th class="num">${m}</th>`).join('')}</tr></thead><tbody>
+      ${lines.map(([k, l]) => `<tr><td class="sticky">${l}</td><td class="num"><b>${fmtNum(c.sum(pr[k].map(Number)), 1)}</b></td>${pr[k].map((v, i) => `<td class="num"><input class="hbc" inputmode="decimal" data-k="pr|${k}|${i}" data-col="${i}" data-orig="${hbIn(v, true)}" value="${hbIn(v, true)}"></td>`).join('')}</tr>`).join('')}
+      <tr class="total"><td class="sticky">Coût Noah & Nina (postes de la catégorie)</td><td class="num">${fmtMoney(c.sum(c.cats.noahnina || []))}</td>${(c.cats.noahnina || Array(12).fill(0)).map(v => `<td class="num">${fmtMoney(v)}</td>`).join('')}</tr>
+      </tbody></table></div>
+      <div class="card"><h3>Rythme de garde</h3><textarea id="hbPresNote" rows="4" style="width:100%">${esc(pr.note || '')}</textarea></div>`;
+  }
+  return head + body;
+};
+
+Views.housebudget.after = function (root) {
+  const hb = hbS(); const c = HB.compute(hb); const MS = HB.MS;
+  $$('[data-hb-tab]', root).forEach(b => b.onclick = () => { ui.hbTab = b.dataset.hbTab; render(); });
+  $('#hbSettings').onclick = hbSettingsForm;
+  $('#hbPrint').onclick = () => window.print();
+  const lk = $('#hbLink'); if (lk) lk.onclick = hbLinkForm;
+  $('#hbCsv').onclick = () => {
+    const rows = [['Catégorie', 'Poste', 'Base de calcul', ...MS, `Total ${hb.year}`]];
+    hb.cats.forEach(x => hb.lines.filter(l => l.cat === x.id).forEach(l => rows.push([x.name, l.label, l.basis || '', ...c.lines[l.id].map(v => Math.round(v * 100) / 100), Math.round(c.sum(c.lines[l.id]) * 100) / 100])));
+    rows.push(['', 'Provision imprévus', '', ...c.imp.map(v => Math.round(v * 100) / 100), Math.round(c.sum(c.imp) * 100) / 100]);
+    rows.push(['', 'TOTAL DÉPENSES', '', ...c.total.map(v => Math.round(v * 100) / 100), Math.round(c.sum(c.total) * 100) / 100]);
+    rows.push(['', 'REVENUS', '', ...c.inc.map(v => Math.round(v * 100) / 100), Math.round(c.sum(c.inc) * 100) / 100]);
+    rows.push(['', 'SOLDE', '', ...c.solde.map(v => Math.round(v * 100) / 100), Math.round(c.sum(c.solde) * 100) / 100]);
+    download(`budget_maison_${hb.year}.csv`, toCSV(rows), 'text/csv');
+  };
+  const tab = ui.hbTab || 'synth';
+  if (tab === 'synth') {
+    const exp = hb.cats.filter(x => x.kind !== 'income');
+    makeChart('hbChMonths', { type: 'bar', data: { labels: MS, datasets: [...exp.map(x => ({ label: x.name, data: c.cats[x.id], backgroundColor: x.color, stack: 'd' })), { label: 'Imprévus', data: c.imp, backgroundColor: '#cbd5e1', stack: 'd' }, { type: 'line', label: 'Revenus', data: c.inc, borderColor: '#10b981', backgroundColor: '#10b981', pointRadius: 2, tension: .2 }] }, options: { scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, ticks: { callback: (v) => fmtNum(v) } } }, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label} : ${fmtMoney(ctx.parsed.y)}` } } } } });
+    makeChart('hbChShare', { type: 'doughnut', data: { labels: [...exp.map(x => x.name), 'Imprévus'], datasets: [{ data: [...exp.map(x => Math.round(c.sum(c.cats[x.id]))), Math.round(c.sum(c.imp))], backgroundColor: [...exp.map(x => x.color), '#cbd5e1'], borderWidth: 0 }] }, options: { plugins: { legend: { position: 'right', labels: { boxWidth: 10, font: { size: 11 } } }, tooltip: { callbacks: { label: (ctx) => `${ctx.label} : ${fmtMoney(ctx.parsed)}` } } } } });
+    const n = $('#hbNotes'); n.onchange = () => hbCommit('Repères enregistrés', () => { hb.notes = n.value; });
+    const gc = $('#hbGoConfirm'); if (gc) gc.onclick = () => { ui.hbTab = 'params'; ui.hbConfirmOnly = true; render(); };
+  } else if (tab === 'budget') {
+    hbBindCells(root, (inp) => { const [, id, i] = inp.dataset.k.split('|'); const raw = inp.value.trim(); hbCommit(null, () => { hb.overrides[id] = hb.overrides[id] || {}; if (raw === '') delete hb.overrides[id][i]; else hb.overrides[id][i] = toNum(raw); if (!Object.keys(hb.overrides[id]).length) delete hb.overrides[id]; }); });
+    $$('[data-hb-line]', root).forEach(b => b.onclick = () => hbLineForm(hb.lines.find(l => l.id === b.dataset.hbLine)));
+    $$('[data-hb-cat]', root).forEach(b => b.onclick = () => hbCatForm(hb.cats.find(x => x.id === b.dataset.hbCat)));
+    $('#hbAddLine').onclick = () => hbLineForm(null); $('#hbAddCat').onclick = () => hbCatForm(null);
+    const co = $('#hbClearOv'); if (co) co.onclick = () => confirmDlg('Effacer les saisies manuelles', 'Toutes les cases saisies à la main reviennent au calcul automatique.', () => { beginEdit(); hb.overrides = {}; hbSyncPlan(); commit('Saisies manuelles effacées'); });
+  } else if (tab === 'params') {
+    hbBindCells(root, (inp) => { const code = inp.dataset.k.slice(2); const raw = inp.value.trim(); hbCommit(null, () => { const p = hb.params.find(x => x.code === code); if (p) p.value = hbPct(p.unit) ? toNum(raw) / 100 : toNum(raw); }); });
+    $$('[data-hb-conf]', root).forEach(cb => cb.onchange = () => hbCommit(null, () => { const p = hb.params.find(x => x.code === cb.dataset.hbConf); if (p) p.confirm = cb.checked; }));
+    $$('[data-hb-par]', root).forEach(b => b.onclick = () => hbParamForm(hb.params.find(p => p.code === b.dataset.hbPar)));
+    $('#hbAddParam').onclick = () => hbParamForm(null);
+    $('#hbOnlyConf').onchange = (e) => { ui.hbConfirmOnly = e.target.checked; render(); };
+  } else if (tab === 'energy') {
+    hbBindCells(root, (inp) => { const [, k, i] = inp.dataset.k.split('|'); const raw = inp.value.trim(); hbCommit(null, () => { hb.energy[k][i] = k === 'houseProfile' ? toNum(raw) / 100 : toNum(raw); }); });
+    const E = c.E; makeChart('hbChEnergy', { type: 'bar', data: { labels: MS, datasets: [{ label: 'Maison + piscine', data: E.costHouse, backgroundColor: '#f59e0b', stack: 'e' }, { label: 'Recharge domicile', data: E.costCharge, backgroundColor: '#0ea5e9', stack: 'e' }, { label: 'Recharge publique', data: E.costPublic, backgroundColor: '#8b5cf6', stack: 'e' }, { label: 'Essence', data: E.costFuel, backgroundColor: '#64748b', stack: 'e' }] }, options: { scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, ticks: { callback: (v) => fmtNum(v) } } } } });
+  } else if (tab === 'presence') {
+    hbBindCells(root, (inp) => { const [, k, i] = inp.dataset.k.split('|'); const raw = inp.value.trim(); hbCommit(null, () => { hb.presence[k][i] = toNum(raw); }); });
+    const n = $('#hbPresNote'); n.onchange = () => hbCommit('Note enregistrée', () => { hb.presence.note = n.value; });
+  }
+};
+
+function hbMonthsField(months) { return `<div class="hb-months">${HB.MS.map((m, i) => `<label><input type="checkbox" data-m="${i}" ${months[i] ? 'checked' : ''}> ${m}</label>`).join('')}</div><div class="flex mt" style="gap:.3rem"><button type="button" class="btn sm" data-mset="all">Tous</button><button type="button" class="btn sm" data-mset="none">Aucun</button></div>`; }
+function hbLineForm(l) {
+  const hb = hbS(); const isNew = !l;
+  const d = l || { id: uid(), cat: (hb.cats.find(x => x.kind !== 'income') || hb.cats[0]).id, label: '', basis: '', src: 'amount', param: '', calc: '', amount: 0, months: Array(12).fill(true), mode: 'each', mult: 1, active: true };
+  const srcOpts = [{ id: 'amount', name: 'Montant fixe' }, { id: 'param', name: 'Hypothèse (onglet Hypothèses)' }, ...(d.src === 'calc' ? [{ id: 'calc', name: 'Calcul automatique' }] : [])];
+  const params = hb.params.map(p => ({ id: p.code, name: `${p.label} — ${hbParamDisplay(p)} ${p.unit || ''}` }));
+  const c = HB.compute(hb);
+  modal({
+    title: isNew ? 'Nouveau poste' : 'Modifier le poste', wide: true,
+    body: `<div class="row">${field('Libellé', inputT('label', d.label))}${field('Catégorie', selectF('cat', hb.cats, d.cat))}</div>
+      ${field('Base de calcul (commentaire)', inputT('basis', d.basis, 'Ex. : Mensuel, Juin, Annuelle lissée…'))}
+      <div class="row">${field('Source du montant', selectF('src', srcOpts, d.src))}<div id="hbSrcP">${field('Hypothèse', selectF('param', params, d.param, '— choisir —'))}</div><div id="hbSrcA">${field('Montant (€)', inputN('amount', d.amount))}</div><div id="hbSrcC">${field('Calcul', `<div class="small" style="padding:.45rem 0">${esc((HB.CALCS[d.calc] || {}).label || '')}</div>`)}</div></div>
+      <div class="row">${field('Multiplicateur', inputN('mult', d.mult), 'Ex. 2 pour « argent de poche × 2 »')}${field('Répartition', selectF('mode', [{ id: 'each', name: 'Le montant s\'applique à chaque mois coché' }, { id: 'spread', name: 'Le montant est réparti sur les mois cochés (annuel lissé)' }], d.mode))}</div>
+      ${field('Mois concernés', hbMonthsField(d.months))}
+      ${checkF('active', d.active !== false, 'Poste actif (décochez pour le neutraliser sans le supprimer)')}
+      ${!isNew && hb.overrides[d.id] ? `<div class="alert warn mt"><span>✎</span><span>${Object.keys(hb.overrides[d.id]).length} case(s) saisie(s) à la main sur ce poste. <label class="switch"><input type="checkbox" name="clearOv"> les effacer</label></span></div>` : ''}
+      ${!isNew ? `<div class="small muted mt">Total actuel : <b>${fmtMoney(c.sum(c.lines[d.id] || []))}</b> sur l'année.</div>` : ''}`,
+    extraButtons: isNew ? '' : '<button class="btn danger" id="hbDelLine">Supprimer</button>',
+    onOpen: (root) => {
+      const upd = () => { const s = $('[name=src]', root).value; $('#hbSrcP').style.display = s === 'param' ? '' : 'none'; $('#hbSrcA').style.display = s === 'amount' ? '' : 'none'; $('#hbSrcC').style.display = s === 'calc' ? '' : 'none'; };
+      $('[name=src]', root).onchange = upd; upd();
+      $$('[data-mset]', root).forEach(b => b.onclick = () => $$('[data-m]', root).forEach(cb => cb.checked = b.dataset.mset === 'all'));
+      const del = $('#hbDelLine'); if (del) del.onclick = () => { closeModal(); confirmDlg('Supprimer le poste', `« ${esc(d.label)} » sera retiré du budget.`, () => { beginEdit(); hb.lines = hb.lines.filter(x => x.id !== d.id); delete hb.overrides[d.id]; hbSyncPlan(); commit('Poste supprimé'); }); };
+    },
+    onSave: () => {
+      const f = formData(); if (!f.label) return toast('Libellé requis', true);
+      if (f.src === 'param' && !f.param) return toast('Choisissez une hypothèse', true);
+      const months = $$('[data-m]', $('#modalBody')).map(cb => cb.checked); if (!months.some(Boolean)) return toast('Cochez au moins un mois', true);
+      beginEdit();
+      const o = isNew ? { id: d.id, calc: '' } : hb.lines.find(x => x.id === d.id);
+      Object.assign(o, { label: f.label, cat: f.cat, basis: f.basis, src: f.src, param: f.src === 'param' ? f.param : '', amount: f.amount || 0, mult: f.mult == null ? 1 : f.mult, mode: f.mode, months, active: f.active });
+      if (f.clearOv) delete hb.overrides[o.id];
+      if (isNew) { const lastIdx = hb.lines.map(x => x.cat).lastIndexOf(o.cat); hb.lines.splice(lastIdx >= 0 ? lastIdx + 1 : hb.lines.length, 0, o); }
+      hbSyncPlan(); closeModal(); commit(isNew ? 'Poste ajouté' : 'Poste modifié');
+    },
+  });
+}
+function hbCatForm(x) {
+  const hb = hbS(); const isNew = !x; const d = x || { id: uid(), name: '', color: colorOptions()[hb.cats.length % 12], kind: 'expense' };
+  const n = hb.lines.filter(l => l.cat === d.id).length;
+  modal({
+    title: isNew ? 'Nouvelle catégorie' : 'Modifier la catégorie',
+    body: `${field('Nom', inputT('name', d.name))}<div class="row">${field('Couleur', `<input type="color" name="color" value="${d.color}">`)}${field('Type', selectF('kind', [{ id: 'expense', name: 'Dépenses' }, { id: 'income', name: 'Revenus' }], d.kind))}</div>`,
+    extraButtons: isNew ? '' : `<button class="btn danger" id="hbDelCat" ${n ? `disabled title="Contient ${n} poste(s)"` : ''}>Supprimer</button>`,
+    onOpen: () => { const b = $('#hbDelCat'); if (b) b.onclick = () => { beginEdit(); hb.cats = hb.cats.filter(c => c.id !== d.id); closeModal(); commit('Catégorie supprimée'); }; },
+    onSave: () => { const f = formData(); if (!f.name) return toast('Nom requis', true); beginEdit(); const o = isNew ? { id: d.id } : hb.cats.find(c => c.id === d.id); Object.assign(o, { name: f.name, color: f.color, kind: f.kind }); if (isNew) { const ii = hb.cats.findIndex(c => c.kind === 'income'); hb.cats.splice(f.kind === 'income' || ii < 0 ? hb.cats.length : ii, 0, o); } hbSyncPlan(); closeModal(); commit(isNew ? 'Catégorie ajoutée' : 'Catégorie modifiée'); },
+  });
+}
+function hbParamForm(p) {
+  const hb = hbS(); const isNew = !p; const d = p || { code: '', label: '', value: 0, unit: '€/mois', note: '', group: (hb.params[hb.params.length - 1] || {}).group || 'Autres', confirm: false };
+  const used = hb.lines.filter(l => l.src === 'param' && l.param === d.code);
+  const groups = [...new Set(hb.params.map(x => x.group || 'Autres'))].map(g => ({ id: g, name: g }));
+  modal({
+    title: isNew ? 'Nouvelle hypothèse' : 'Modifier l\'hypothèse',
+    body: `${field('Libellé', inputT('label', d.label))}<div class="row">${field('Valeur', `<input type="text" inputmode="decimal" name="value" value="${hbParamDisplay(d)}">`, 'Pour une unité en %, saisir 5 pour 5 %')}${field('Unité', inputT('unit', d.unit, '€/mois, €/an, %, km…'))}</div>
+      <div class="row">${field('Groupe', selectF('group', groups, d.group))}${field('Code', inputT('code', d.code, 'auto'), isNew ? 'Laissez vide : généré à partir du libellé' : 'Utilisé par les formules — non modifiable')}</div>
+      ${field('Source / commentaire', `<textarea name="note" rows="2">${esc(d.note || '')}</textarea>`)}${checkF('confirm', d.confirm, 'À confirmer (devis, facture…)')}
+      ${!isNew ? `<div class="small muted mt">Utilisée par : ${used.length ? used.map(l => esc(l.label)).join(', ') : 'calculs Énergie / Présence / imprévus, ou aucun poste'}</div>` : '<div class="small muted mt">Après création, liez-la à un poste via ✎ dans « Budget mensuel » (source : Hypothèse).</div>'}`,
+    extraButtons: isNew ? '' : '<button class="btn danger" id="hbDelPar">Supprimer</button>',
+    onOpen: (root) => { if (!isNew) $('[name=code]', root).disabled = true; const b = $('#hbDelPar'); if (b) b.onclick = () => { closeModal(); confirmDlg('Supprimer l\'hypothèse', used.length ? `Elle est utilisée par ${used.length} poste(s), qui passeront à 0 €.` : 'Cette hypothèse sera supprimée.', () => { beginEdit(); hb.params = hb.params.filter(x => x.code !== d.code); hbSyncPlan(); commit('Hypothèse supprimée'); }); }; },
+    onSave: () => {
+      const f = formData(); if (!f.label) return toast('Libellé requis', true);
+      let code = isNew ? (f.code || f.label).normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 24) : d.code;
+      if (isNew) { let k = code, n = 2; while (hb.params.some(x => x.code === k)) k = `${code}_${n++}`; code = k; }
+      const val = toNum(f.value); beginEdit();
+      const o = isNew ? { code } : hb.params.find(x => x.code === d.code);
+      Object.assign(o, { label: f.label, unit: f.unit, group: f.group, note: f.note, confirm: f.confirm }); o.value = /%/.test(f.unit || '') ? val / 100 : val;
+      if (isNew) { const li = hb.params.map(x => x.group).lastIndexOf(f.group); hb.params.splice(li >= 0 ? li + 1 : hb.params.length, 0, o); }
+      hbSyncPlan(); closeModal(); commit(isNew ? 'Hypothèse ajoutée' : 'Hypothèse modifiée');
+    },
+  });
+}
+function hbSettingsForm() {
+  const hb = hbS();
+  modal({
+    title: 'Réglages du budget maison', wide: true,
+    body: `<div class="row">${field('Titre', inputT('title', hb.title))}${field('Année', inputN('year', hb.year, 1, 2000))}</div>${field('Foyer (description)', `<textarea name="household" rows="3">${esc(hb.household || '')}</textarea>`)}
+      <div class="card mt" style="box-shadow:none"><h3>Lien avec le plan</h3><p class="small muted">Optionnel : reporter le total des dépenses de chaque mois (imprévus compris) dans une règle de dépense du plan (ex. « Dépenses de vie »), pour que la projection et les comptes en tiennent compte. Mis à jour automatiquement à chaque modification.</p><button type="button" class="btn sm" id="hbLinkBtn">${hb.planLink ? 'Modifier le lien' : 'Relier au plan…'}</button></div>
+      <div class="card mt" style="box-shadow:none"><h3>Réinitialiser</h3><p class="small muted">Revenir aux valeurs du classeur « Budget Maison Jaillans 2027 » (hypothèses, postes, énergie, présence). Vos saisies seront perdues (annulable avec ↶).</p><button type="button" class="btn sm danger" id="hbReset">Réinitialiser depuis le classeur</button></div>`,
+    onOpen: () => {
+      $('#hbLinkBtn').onclick = () => { closeModal(); hbLinkForm(); };
+      $('#hbReset').onclick = () => { closeModal(); confirmDlg('Réinitialiser le budget maison', 'Toutes les modifications du budget maison seront remplacées par les valeurs du classeur.', () => { beginEdit(); const link = hb.planLink; state.houseBudget = HB.defaults(); state.houseBudget.planLink = link; hbSyncPlan(); commit('Budget maison réinitialisé'); }); };
+    },
+    onSave: () => { const f = formData(); beginEdit(); hbUnlinkKeep(() => { hb.title = f.title || 'Budget maison'; hb.year = Number(f.year) || hb.year; hb.household = f.household; }); closeModal(); commit('Réglages enregistrés'); },
+  });
+}
+// change d'année en conservant le lien : on retire d'abord les anciennes surcharges
+function hbUnlinkKeep(fn) { const hb = hbS(); const lk = hb.planLink ? { ...hb.planLink } : null; if (lk) hbUnlink(); fn(); if (lk) { hb.planLink = { scId: lk.scId, ruleId: lk.ruleId, months: [] }; hbSyncPlan(); } }
+function hbLinkForm() {
+  const hb = hbS(); const lk = hb.planLink || {}; const scs = state.scenarios;
+  const scId = lk.scId || (baseScenario() || {}).id;
+  const ruleOpts = (sid) => ((scs.find(s => s.id === sid) || { rules: [] }).rules.filter(r => r.kind === 'expense')).map(r => ({ id: r.id, name: r.name }));
+  modal({
+    title: 'Relier le budget maison au plan',
+    body: `<p class="small muted">Pour chaque mois de ${hb.year}, le montant de la règle choisie sera remplacé par le total des dépenses du budget maison (surcharges mensuelles visibles dans Projection et Règles de flux).</p>
+      ${field('Scénario', selectF('scId', scs, scId))}<div id="hbRuleWrap">${field('Règle de dépense remplacée', selectF('ruleId', ruleOpts(scId), lk.ruleId || 'r_dep'))}</div>`,
+    extraButtons: hb.planLink ? '<button class="btn danger" id="hbUnlinkBtn">Retirer le lien</button>' : '',
+    onOpen: (root) => {
+      $('[name=scId]', root).onchange = (e) => { $('#hbRuleWrap').innerHTML = field('Règle de dépense remplacée', selectF('ruleId', ruleOpts(e.target.value), '')); };
+      const u = $('#hbUnlinkBtn'); if (u) u.onclick = () => { beginEdit(); hbUnlink(); closeModal(); commit('Lien avec le plan retiré'); };
+    },
+    onSave: () => { const f = formData(); if (!f.ruleId) return toast('Choisissez une règle de dépense', true); beginEdit(); hbUnlink(); hb.planLink = { scId: f.scId, ruleId: f.ruleId, months: [] }; hbSyncPlan(); closeModal(); commit('Budget maison relié au plan'); },
+  });
+}
+
+</script>
+<script>
 /* ===================== SYNCHRO CLOUD CHIFFRÉE (Firebase) =====================
    - Connexion Google (seul le compte autorisé dans les règles Firestore peut lire/écrire)
    - Les données sont compressées puis chiffrées (AES-256-GCM, clé dérivée du mot de passe)
